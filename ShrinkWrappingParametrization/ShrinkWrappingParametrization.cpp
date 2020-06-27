@@ -1,12 +1,15 @@
 #include "stdafx.h"
+#include <iostream>
+#include "MainForm.h"
 
 using namespace System;
+using namespace ShrinkWrappingParametrization;
 
 
 
-//todo 
-//1 first commit 
+//1 first commit
 //2 generate form 
+//todo 
 //3 vis opengl
 //4 load objs
 //5 get depthmap
@@ -14,8 +17,11 @@ using namespace System;
 //7 shrinkWrapping
 
 
-
-int main(array<System::String ^> ^args)
+[STAThreadAttribute]
+int main()
 {
-    return 0;
+  std::cout << "FormMain::getInst()->ShowDialog() \n";
+  MainForm::GetInst()->ShowDialog();
+
+  return 0;
 }
