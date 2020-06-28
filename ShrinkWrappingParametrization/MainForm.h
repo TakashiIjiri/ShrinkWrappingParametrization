@@ -22,10 +22,7 @@ namespace ShrinkWrappingParametrization {
     static MainForm^ m_singleton;
     OglForCLI *m_ogl;
 
-    MainForm(void)
-		{
-			InitializeComponent();
-		}
+    MainForm(void);
 
   public:
 
@@ -109,4 +106,6 @@ namespace ShrinkWrappingParametrization {
     System::Void m_main_panel_MouseUp(System::Object^  sender, System::Windows::Forms::MouseEventArgs^  e);
     System::Void m_main_panel_Resize(System::Object^  sender, System::EventArgs^  e);
   };
+
+  inline void RedrawMainForm(){ MainForm::GetInst()->RedrawMainPanel(); }
 }

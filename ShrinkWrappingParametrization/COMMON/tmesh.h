@@ -195,15 +195,22 @@ public:
       else if (stricmp(token, "f") == 0)
       {
         //sscanfの返り値は正常に読めた数: / が入ったら2文字しか読めない
+        int v[4], t[4], s;
+        int vtxnum = sscanf(bkup, "f %d %d %d %d", &v[0], &v[1], &v[2], &v[3]);
+        if (vtxnum < 3) vtxnum = sscanf(bkup, "f %d/%d %d/%d %d/%d %d/%d", &v[0], &t[0], &v[1], &t[1], &v[2], &t[2], &v[3], &t[3]) / 2;
+        if (vtxnum < 3) vtxnum = sscanf(bkup, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d", &v[0], &t[0], &s, &v[1], &t[1], &s, &v[2], &t[2], &s, &v[3], &t[3], &s) / 3;
+        if (vtxnum < 3) vtxnum = sscanf(bkup, "f %d//%d %d//%d %d//%d %d//%d", &v[0], &s, &v[1], &s, &v[2], &s, &v[3], &s) / 2;
 
-        int v[3], t[3], s;
-        int vtxnum = sscanf(bkup, "f %d %d %d %d", &v[0], &v[1], &v[2], &s);
-        if (vtxnum < 3) vtxnum = sscanf(bkup, "f %d/%d %d/%d %d/%d %d/%d", &v[0], &t[0], &v[1], &t[1], &v[2], &t[2], &s, &s) / 2;
-        if (vtxnum < 3) vtxnum = sscanf(bkup, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d", &v[0], &t[0], &s, &v[1], &t[1], &s, &v[2], &t[2], &s, &s, &s, &s) / 3;
-        if (vtxnum < 3) vtxnum = sscanf(bkup, "f %d//%d %d//%d %d//%d %d//%d", &v[0], &s, &v[1], &s, &v[2], &s, &s, &s) / 2;
-        pList.push_back(TPoly(v[0] - 1, v[1] - 1, v[2] - 1));
-        pUvList.push_back(TPoly(t[0] - 1, t[1] - 1, t[2] - 1));
-
+        if ( vtxnum == 4 ){
+          pList  .push_back(TPoly(v[0] - 1, v[1] - 1, v[2] - 1));
+          pList  .push_back(TPoly(v[0] - 1, v[2] - 1, v[3] - 1));
+          pUvList.push_back(TPoly(t[0] - 1, t[1] - 1, t[2] - 1));
+          pUvList.push_back(TPoly(t[0] - 1, t[2] - 1, t[3] - 1));
+        }
+        else{
+          pList.push_back(TPoly(v[0] - 1, v[1] - 1, v[2] - 1));
+          pUvList.push_back(TPoly(t[0] - 1, t[1] - 1, t[2] - 1));
+        }
       }
       free(bkup);
     }
@@ -601,6 +608,33 @@ public:
       TPoly(6,  2, 10), TPoly(1,  6, 11), TPoly(3,  5, 10), TPoly(5, 4, 11),
       TPoly(2,  7,  9), TPoly(7,  1,  0), TPoly(3,  9,  8), TPoly(4, 8,  0) };
     initialize(Vs, Ps);
+  }
+
+
+  // 1 - 2
+  // |   |
+  // 0 - 3
+  void initializeSubdivPlane( EVec3f p[4], int n)
+  {
+    std::vector<EVec3f> Vs;
+    std::vector<TPoly> Ps;
+
+    for ( int x = 0; x < n; ++x) { 
+      for ( int y = 0; y < n; ++y) {
+        float tx = x / (n-1.0f);
+        float ty = y / (n-1.0f);
+        EVec3f p1 = tx * p[0] + (1-tx) * p[3];
+        EVec3f p2 = tx * p[1] + (1-tx) * p[2];
+        Vs.push_back( ty * p1 + (1-ty) * p2 );
+     
+        if ( x < n - 1 && y < n -1 ) { 
+          int i = x + y * n; 
+          Ps.push_back( TPoly(i, i+1, i+n+1) );
+          Ps.push_back( TPoly(i, i+n+1, i+n) );
+        }
+      }
+    }
+    initialize(Vs,Ps);
   }
 
 

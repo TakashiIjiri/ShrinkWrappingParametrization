@@ -7,12 +7,37 @@
 
 using namespace ShrinkWrappingParametrization;
 
+#pragma comment( lib, "opengl32.lib" )
+#pragma comment( lib, "glu32.lib" )
+#pragma comment( lib, "gdi32.lib" )
+#pragma comment( lib, "User32.lib" )
 
 
-System::Void MainForm::m_main_panel_Paint(System::Object^  sender, System::Windows::Forms::PaintEventArgs^  e){}
+
+MainForm::MainForm()
+{
+  InitializeComponent();
+
+  m_ogl = new OglForCLI(GetDC((HWND)m_main_panel->Handle.ToPointer()));
+  m_ogl->SetCam(EVec3f(0,0,5), EVec3f(0,0,0), EVec3f(0,1,0));
+  m_ogl->SetBgColor(0.3f, 0.3f, 0.3f, 0.5f);
+
+}
 
 
-System::Void MainForm::m_main_panel_MouseDoubleClick(System::Object^  sender, System::Windows::Forms::MouseEventArgs^  e){}
+System::Void MainForm::m_main_panel_Paint(
+    System::Object^  sender, 
+    System::Windows::Forms::PaintEventArgs^  e)
+{
+  this->RedrawMainPanel();
+}
+
+
+System::Void MainForm::m_main_panel_MouseDoubleClick(
+    System::Object^  sender, 
+    System::Windows::Forms::MouseEventArgs^  e)
+{ 
+}
 
 
 System::Void MainForm::m_main_panel_MouseDown(
@@ -51,41 +76,75 @@ System::Void MainForm::m_main_panel_Resize(
     System::Object^  sender, 
     System::EventArgs^  e)
 {
+  this->RedrawMainPanel();
 }
 
 
 
 
 
+static void initializeLights()
+{
+  GLfloat pos0 [4] = {0,0, 3000,1};
+  GLfloat pos1 [4] = {0,0,-3000,1};
+  GLfloat pos2 [4] = {3000,-3000, 3000,1};
+  GLfloat dir0 [3] = {0,0,-1};
+  GLfloat dir1 [3] = {0,0, 1};
+  GLfloat dir2 [3] = {-1,1,-1};
 
 
+  GLfloat ambi0[3] = {0.5f,0.5f,0.5f};
+  GLfloat ambi1[3] = {0,0,0};
+  GLfloat ambi2[3] = {0,0,0};
+  GLfloat diff0[3] = {0.5f,0.5f,0.5f};
+  GLfloat diff1[3] = {0.5f,0.5f,0.5f};
+  GLfloat diff2[3] = {0.5f,0.5f,0.5f};
+  GLfloat spec0[3] = {0.3f,0.3f,0.3f};
+  GLfloat spec1[3] = {0.3f,0.3f,0.3f};
+  GLfloat spec2[3] = {0.3f,0.3f,0.3f};
+
+  glEnable(GL_LIGHT0);
+  glLightfv(GL_LIGHT0, GL_POSITION, pos0);
+  glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, dir0 );
+  glLightf( GL_LIGHT0, GL_SPOT_CUTOFF,  180.0 );
+  glLightf( GL_LIGHT0, GL_SPOT_EXPONENT, 0 );
+  glLightfv(GL_LIGHT0, GL_AMBIENT , ambi0);
+  glLightfv(GL_LIGHT0, GL_DIFFUSE , diff0);
+  glLightfv(GL_LIGHT0, GL_SPECULAR, spec0);
+
+  glEnable(GL_LIGHT1);
+  glLightfv(GL_LIGHT1, GL_POSITION, pos1);
+  glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, dir1 );
+  glLightf( GL_LIGHT1, GL_SPOT_CUTOFF,  180.0 );
+  glLightf( GL_LIGHT1, GL_SPOT_EXPONENT, 0 );
+  glLightfv(GL_LIGHT1, GL_AMBIENT , ambi1);
+  glLightfv(GL_LIGHT1, GL_DIFFUSE , diff1);
+  glLightfv(GL_LIGHT1, GL_SPECULAR, spec1);
+  
+  glEnable(GL_LIGHT2);
+  glLightfv(GL_LIGHT2, GL_POSITION, pos2);
+  glLightfv(GL_LIGHT2, GL_SPOT_DIRECTION, dir2 );
+  glLightf( GL_LIGHT2, GL_SPOT_CUTOFF,  180.0 );
+  glLightf( GL_LIGHT2, GL_SPOT_EXPONENT, 0 );
+
+  glLightfv(GL_LIGHT2, GL_AMBIENT , ambi2);
+  glLightfv(GL_LIGHT2, GL_DIFFUSE , diff2);
+  glLightfv(GL_LIGHT2, GL_SPECULAR, spec2);
+}
+
+
+//(x,y,z) = 2m 2m 6m
 void MainForm::RedrawMainPanel()
 {
-  static bool isFirst = true;
-/*
-  if (isFirst)
-  {
-    isFirst = false;
+  // unit : [m]
+  float  nearDist = 0.1f;
+  float  farDist  = 25.0f;
 
-    //このタイミングで 他のformを生成し, Show()も読んでOK
-    initializeSingletons();
-    ModeCore::getInst()->ModeSwitch(MODE_VIS_NORMAL);
-  }
+  m_ogl->OnDrawBegin ( m_main_panel->Width, m_main_panel->Height, 45.0, nearDist, farDist);
 
-  EVec3f cuboid = ImageCore::GetInst()->GetCuboidF();
-  float  nearDist = (cuboid[0] + cuboid[1] + cuboid[2]) / 3.0f * 0.01f;
-  float  farDist = (cuboid[0] + cuboid[1] + cuboid[2]) / 3.0f * 8;
-
-
-  m_ogl->OnDrawBegin(FormMainPanel->Width, FormMainPanel->Height, 45.0, nearDist, farDist);
   initializeLights();
-  if (FormVisParam::getInst()->bRendFrame()) t_drawFrame(cuboid);
-  ModeCore::getInst()->drawScene(cuboid, m_ogl->GetCamPos(), m_ogl->GetCamCnt());
-  if (FormVisParam::getInst()->bRendIndi())
-  {
-    ViewIndiCore::getInst()->drawIndicator(FormMainPanel->Width, FormMainPanel->Height, m_ogl->GetCamPos(), m_ogl->GetCamCnt(), m_ogl->GetCamUp());
-  }
+  TCore::GetInst()->DrawScene(m_ogl);
+
   m_ogl->OnDrawEnd();
-*/
 }
 

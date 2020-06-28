@@ -3,6 +3,8 @@
 
 #include "COMMON/OglForCLI.h"
 #include "COMMON/tmath.h"
+#include "COMMON/tmesh.h"
+#include "COMMON/tquadmesh.h"
 
 #pragma unmanaged
 
@@ -10,6 +12,10 @@
 
 class TCore
 {
+  bool m_bL, m_bR, m_bM;
+
+  TMesh m_vis_mesh, m_panel;
+  TQuadMesh m_quadmesh;
   TCore();
 public:
   
