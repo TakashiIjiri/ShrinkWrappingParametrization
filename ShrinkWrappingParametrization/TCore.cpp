@@ -68,6 +68,7 @@ TCore::TCore()
   vector<EVec4i> Qs = { EVec4i(0,2,3,1), EVec4i(0,1,5,4), EVec4i(0,4,6,2), 
                         EVec4i(2,6,7,3), EVec4i(1,3,7,5), EVec4i(5,7,6,4) };
   m_quadmesh.initialize(Vs, Qs);
+m_quadmesh.Subdivision(5);
     
 }
 
@@ -166,14 +167,15 @@ void TCore::DrawScene( OglForCLI* ogl)
   
    
   glDisable(GL_LIGHTING);
-  glColor3d(0.5,0,0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[0], 0.03f);
-  glColor3d(1.0,0,0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[1], 0.02f);
-  glColor3d(0,0.5,0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[2], 0.02f);
-  glColor3d(0,1.0,0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[3], 0.02f);
-  glColor3d(0,0,0.5); TMesh::DrawSphere(m_vis_mesh.m_vVerts[4], 0.02f);
-  glColor3d(0,0,1.0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[5], 0.02f);
-  glColor3d(0.5,0,1); TMesh::DrawSphere(m_vis_mesh.m_vVerts[6], 0.02f);
-  glColor3d(1.0,0,1); TMesh::DrawSphere(m_vis_mesh.m_vVerts[7], 0.02f);
+  int piv = 24;
+  glColor3d(0.5,0,0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+0], 0.03f);
+  glColor3d(1.0,0,0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+1], 0.02f);
+  glColor3d(0,0.5,0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+2], 0.02f);
+  glColor3d(0,1.0,0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+3], 0.02f);
+  glColor3d(0,0,0.5); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+4], 0.02f);
+  glColor3d(0,0,1.0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+5], 0.02f);
+  glColor3d(0.5,0,1); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+6], 0.02f);
+  glColor3d(1.0,0,1); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+7], 0.02f);
 
 
   glEnable(GL_LIGHTING);

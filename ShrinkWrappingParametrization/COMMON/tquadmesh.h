@@ -9,6 +9,7 @@
 #include <map>
 
 #include "tmath.h"
+#include "tmesh.h"
 #include "tqueue.h"
 #include "OglForCLI.h"
 
@@ -86,15 +87,17 @@ class TQuadMesh
 
 public:
   std::vector<EVec3f> m_verts;
-  std::vector<EVec3f> m_norms;
   std::vector<TQuad > m_quads;
+  std::vector<EVec3f> m_vnorms; //vertex
+  std::vector<EVec3f> m_qnorms; //quad 
   std::vector<TQuadEdge> m_edges;
 
 
   TQuadMesh()
   {
     m_verts.clear();
-    m_norms.clear();
+    m_vnorms.clear();
+    m_qnorms.clear();
     m_quads.clear();
     m_edges.clear();
   }
@@ -107,7 +110,8 @@ public:
   void clear()
   {
     m_verts.clear();
-    m_norms.clear();
+    m_vnorms.clear();
+    m_qnorms.clear();
     m_quads.clear();
     m_edges.clear();
   }
@@ -116,7 +120,8 @@ public:
   {
     clear();
     m_verts = src.m_verts;
-    m_norms = src.m_norms;
+    m_vnorms = src.m_vnorms;
+    m_qnorms = src.m_qnorms;
     m_quads = src.m_quads;
     m_edges = src.m_edges;
   }
@@ -179,8 +184,8 @@ public:
     //check
     std::cout << " information ------------------------------------- \n";
     std::cout << "verts:" << m_verts.size() << " quads: " << m_quads.size() << " edges: " << m_edges.size() << "\n";
-    for ( auto e : m_edges) 
-      std::cout << e.vi[0] << ", " << e.vi[1] << " -- " << e.quad_l << ", " << e.quad_r << "\n";
+    //for ( auto e : m_edges) 
+    //  std::cout << e.vi[0] << ", " << e.vi[1] << " -- " << e.quad_l << ", " << e.quad_r << "\n";
 
     
   }
@@ -194,8 +199,9 @@ public:
   }
 
   void Rotate(Eigen::AngleAxis<float> &R) { 
-    for ( auto &v : m_verts) v = R * v; 
-    for ( auto &v : m_norms) v = R * v; 
+    for ( auto &v : m_verts ) v = R * v; 
+    for ( auto &v : m_qnorms) v = R * v; 
+    for ( auto &v : m_vnorms) v = R * v; 
   }
 
   void Rotate(const EMat3f &R) { 
@@ -260,11 +266,12 @@ public:
 
   void UpdateNormal()
   {
-    m_norms.resize( m_verts.size() );
+    m_vnorms.resize( m_verts.size() );
+    m_qnorms.resize( m_quads.size() );
 
 #pragma omp parallel for
-    for (int i = 0, s = (int)m_norms.size(); i < s ; ++i) 
-      m_norms[i].setZero();
+    for (int i = 0, s = (int)m_vnorms.size(); i < s ; ++i) 
+      m_vnorms[i].setZero();
 
     for (int i = 0, s = (int)m_quads.size(); i < s ; ++i)
     { 
@@ -276,19 +283,22 @@ public:
       EVec3f n2 = ( x2 - x0).cross( x3 - x0);
       float l1 = n1.norm();  
       float l2 = n2.norm();
+
       if ( l1 > 0 ) n1 *= 1.f / l1;  
       if ( l2 > 0 ) n2 *= 1.f / l2;
-      m_norms[idx[0]] += n1 + n2;  
-      m_norms[idx[1]] += n1;  
-      m_norms[idx[2]] += n1 + n2;  
-      m_norms[idx[3]] += n2;  
+      m_qnorms[i] = (l1+l2 > 0) ? (n1 + n2).normalized() : EVec3f(0,0,0);
+
+      m_vnorms[idx[0]] += n1 + n2;  
+      m_vnorms[idx[1]] += n1;  
+      m_vnorms[idx[2]] += n1 + n2;  
+      m_vnorms[idx[3]] += n2;  
     }
 
 #pragma omp parallel for
-    for (int i = 0, s = (int)m_norms.size(); i < s ; ++i) 
+    for (int i = 0, s = (int)m_vnorms.size(); i < s ; ++i) 
     {
-      float len = m_norms[i].norm();
-      if ( len > 0 ) m_norms[i] *= 1.0f / len;
+      float len = m_vnorms[i].norm();
+      if ( len > 0 ) m_vnorms[i] *= 1.0f / len;
     }
 
   }
@@ -297,37 +307,8 @@ public:
   void draw() const
   {
     if (m_verts.size() == 0 || m_quads.size() == 0) return;
-/*
-
-    glBegin ( GL_TRIANGLES );
-    for ( int i = 0, s = (int)m_quads.size(); i < s; ++i )
-    {
-      const int *idx = m_quads[i].vi;
-      glNormal3fv( m_norms[idx[0]].data()); glVertex3fv( m_verts[idx[0]].data() );
-      glNormal3fv( m_norms[idx[1]].data()); glVertex3fv( m_verts[idx[1]].data() );
-      glNormal3fv( m_norms[idx[2]].data()); glVertex3fv( m_verts[idx[2]].data() );
-      glNormal3fv( m_norms[idx[0]].data()); glVertex3fv( m_verts[idx[0]].data() );
-      glNormal3fv( m_norms[idx[2]].data()); glVertex3fv( m_verts[idx[2]].data() );
-      glNormal3fv( m_norms[idx[3]].data()); glVertex3fv( m_verts[idx[3]].data() );
-    }
-
-    glEnd();
-*/
 
     unsigned int *indices = new unsigned int[ 3 * 2 * m_quads.size() ]; 
-    float *verts = new float[ 3 * m_verts.size() ];
-    float *norms = new float[ 3 * m_verts.size() ];
-    
-#pragma omp parallel for 
-    for ( int i = 0, s = (int)m_verts.size(); i < s; ++i )
-    {
-      verts[3*i+0] = m_verts[i][0];
-      verts[3*i+1] = m_verts[i][1];
-      verts[3*i+2] = m_verts[i][2];
-      norms[3*i+0] = m_norms[i][0];
-      norms[3*i+1] = m_norms[i][1];
-      norms[3*i+2] = m_norms[i][2];
-    }
 
 #pragma omp parallel for 
     for ( int i = 0, s = (int)m_quads.size(); i < s; ++i )
@@ -347,11 +328,9 @@ public:
     //glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     glVertexPointer(3, GL_FLOAT, 0, &m_verts.front() );
-    glNormalPointer(   GL_FLOAT, 0, &m_norms.front() );
+    glNormalPointer(   GL_FLOAT, 0, &m_vnorms.front() );
     glDrawElements(GL_TRIANGLES, 3 * 2 * (int)m_quads.size(), GL_UNSIGNED_INT, indices);
 
-    delete[] norms;
-    delete[] verts;
     delete[] indices;
 
     glDisableClientState(GL_VERTEX_ARRAY);
@@ -389,6 +368,126 @@ public:
     glColor3d(r, g, b);
     DrawEdges();
   }
+
+
+private:
+
+  //q2 +--e1--+ q1
+  //   |      |
+  //   e2 qc  e0
+  //   |      |
+  //q3 +--e3--+ q0
+
+  void SubdivisionIter()
+  {
+    //gen vertices
+    const int num_v = (int)m_verts.size();
+    const int num_e = (int)m_edges.size();
+    const int num_q = (int)m_quads.size();
+    
+    std::vector<EVec3f> Vs = m_verts;
+
+    for ( int i = 0; i < num_e; ++i)  
+    {
+      int* ei = m_edges[i].vi;
+      EVec3f c = 0.5f * (m_verts[ei[0]] + m_verts[ei[1]]) ;
+      Vs.push_back( c );
+    } 
+
+    for ( int i = 0; i < num_q; ++i)  
+    {
+      int* qi = m_quads[i].vi;
+      EVec3f c = 0.25f * (m_verts[qi[0]] + m_verts[qi[1]] 
+                        + m_verts[qi[2]] + m_verts[qi[3]]) ;
+      Vs.push_back( c );
+    }
+
+    std::vector<EVec4i> Qs;
+    for ( int i = 0; i < num_q; ++i)  
+    {
+      int* qi = m_quads[i].vi;
+      int e0 = m_quads[i].ei[0] + num_v;
+      int e1 = m_quads[i].ei[1] + num_v;
+      int e2 = m_quads[i].ei[2] + num_v;
+      int e3 = m_quads[i].ei[3] + num_v;
+      int qc = i + num_e + num_v;
+      Qs.push_back( EVec4i(qi[0], e0, qc, e3) );
+      Qs.push_back( EVec4i(qi[1], e1, qc, e0) );
+      Qs.push_back( EVec4i(qi[2], e2, qc, e1) );
+      Qs.push_back( EVec4i(qi[3], e3, qc, e2) );
+    }
+    initialize(Vs, Qs);
+  }
+
+
+public:
+
+  void Subdivision(int n = 1)
+  {
+    for ( int iter = 0; iter < n; ++iter)
+      SubdivisionIter();
+  }
+
+/*
+private:
+  std::vector<float> ShrinkWrappingIter(const TMesh &trgtmesh, const std::vector<float> &v_offsets)
+  {
+    const int num_v = (int)m_verts.size();
+    const int num_e = (int)m_edges.size();
+    const int num_q = (int)m_quads.size();
+    
+    //gen vertices
+    std::vector<EVec3f> Vs = m_verts;
+    Vs.resize();
+    for ( int i = 0; i < num_e; ++i)  
+    {
+      int* ei = m_edges[i].vi;
+      EVec3f c = 0.5f * (m_verts[ei[0]] + m_verts[ei[1]]) ;
+      Vs.push_back( c );
+    } 
+
+    for ( int i = 0; i < num_q; ++i)  
+    {
+      int* qi = m_quads[i].vi;
+      EVec3f c = 0.25f * (m_verts[qi[0]] + m_verts[qi[1]] 
+                        + m_verts[qi[2]] + m_verts[qi[3]]) ;
+      Vs.push_back( c );
+    }
+
+    std::vector<EVec4i> Qs;
+    for ( int i = 0; i < num_q; ++i)  
+    {
+      int* qi = m_quads[i].vi;
+      int e0 = m_quads[i].ei[0] + num_v;
+      int e1 = m_quads[i].ei[1] + num_v;
+      int e2 = m_quads[i].ei[2] + num_v;
+      int e3 = m_quads[i].ei[3] + num_v;
+      int qc = i + num_e + num_v;
+      Qs.push_back( EVec4i(qi[0], e0, qc, e3) );
+      Qs.push_back( EVec4i(qi[1], e1, qc, e0) );
+      Qs.push_back( EVec4i(qi[2], e2, qc, e1) );
+      Qs.push_back( EVec4i(qi[3], e3, qc, e2) );
+    }
+    initialize(Vs, Qs);
+
+
+
+  }
+
+  // starting from cube shape (8 vertices)
+  // perform subdivision and projection iteratively 
+  // Nobuyuki's paper 
+  void ShrinkWrapping(int n, const TMesh &trgtmesh)
+  {
+    if ( m_verts.size() != 8 || m_quads.size() != 6 ) return;
+    vector<float> verts_offset;
+
+    for ( int i=0; i < n; ++i )
+       verts_offset = ShrinkWrappingIter(trgtmesh, verts_offset);
+  }
+
+*/
+
 
 
 
