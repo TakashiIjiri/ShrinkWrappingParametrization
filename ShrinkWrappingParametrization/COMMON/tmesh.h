@@ -703,17 +703,28 @@ public:
     for (int pi = 0; pi < m_pSize; ++pi)
     {
       const int *p = m_pPolys[pi].idx;
-      if (t_intersectRayToTriangle(rayP, rayD, m_vVerts[p[0]], m_vVerts[p[1]], m_vVerts[p[2]], tmpPos))
+      const EVec3f &x0 = m_vVerts[p[0]];
+      const EVec3f &x1 = m_vVerts[p[1]];
+      const EVec3f &x2 = m_vVerts[p[2]];
+
+      if ( rayD.dot(x0 - rayP) < 0 && 
+           rayD.dot(x1 - rayP) < 0 && 
+           rayD.dot(x2 - rayP) < 0 ) 
+        continue;
+
+      if ( !t_intersectRayToTriangle(rayP, rayD, x0, x1, x2, tmpPos))
+        continue;
+
+      
+      float d = (tmpPos - rayP).norm();
+      if (d < depth)
       {
-        float d = (tmpPos - rayP).norm();
-        if (d < depth)
-        {
-          depth = d;
-          pos = tmpPos;
-          pid = pi;
-        }
+        depth = d;
+        pos = tmpPos;
+        pid = pi;
       }
     }
+
     return depth != FLT_MAX;
   }
 

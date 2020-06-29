@@ -15,6 +15,8 @@ class TCore
   bool m_bL, m_bR, m_bM;
 
   TMesh m_vis_mesh, m_panel;
+
+  std::vector<float> m_quadmesh_offset;
   TQuadMesh m_quadmesh;
   TCore();
 public:
@@ -32,6 +34,7 @@ public:
   void RBtnUp(EVec2i p, OglForCLI* ogl);
   void MBtnUp(EVec2i p, OglForCLI* ogl);
   void DrawScene( OglForCLI* ogl );
+  void KeyDown(int keycode);
 };
 
 #pragma managed

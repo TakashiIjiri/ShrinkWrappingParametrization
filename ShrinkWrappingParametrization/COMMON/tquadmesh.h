@@ -268,9 +268,11 @@ public:
   {
     m_vnorms.resize( m_verts.size() );
     m_qnorms.resize( m_quads.size() );
+    
+    const int num_v = (int)m_vnorms.size();    
 
 #pragma omp parallel for
-    for (int i = 0, s = (int)m_vnorms.size(); i < s ; ++i) 
+    for (int i = 0; i < num_v; ++i) 
       m_vnorms[i].setZero();
 
     for (int i = 0, s = (int)m_quads.size(); i < s ; ++i)
@@ -295,7 +297,7 @@ public:
     }
 
 #pragma omp parallel for
-    for (int i = 0, s = (int)m_vnorms.size(); i < s ; ++i) 
+    for (int i = 0; i < num_v ; ++i) 
     {
       float len = m_vnorms[i].norm();
       if ( len > 0 ) m_vnorms[i] *= 1.0f / len;
@@ -309,9 +311,10 @@ public:
     if (m_verts.size() == 0 || m_quads.size() == 0) return;
 
     unsigned int *indices = new unsigned int[ 3 * 2 * m_quads.size() ]; 
+    const int num_q = (int)m_quads.size();
 
 #pragma omp parallel for 
-    for ( int i = 0, s = (int)m_quads.size(); i < s; ++i )
+    for ( int i = 0; i < num_q; ++i )
     {
       const int *idx = m_quads[i].vi;
       indices[6*i + 0] = idx[0];
@@ -341,9 +344,9 @@ public:
   //only for surface where each vertex has unique texture coordinate
   void draw(const float *diff, const float *ambi, const float *spec, const float *shin) const
   {
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diff);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambi);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR , spec);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE  , diff);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT  , ambi);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shin);
     draw();
   }
@@ -367,6 +370,24 @@ public:
     glLineWidth((float)width);
     glColor3d(r, g, b);
     DrawEdges();
+  }
+
+
+
+  void DrawDebugInfo() const
+  {
+    glDisable(GL_LIGHTING);
+    glBegin(GL_LINES );
+    for ( auto e : m_edges){    
+      EVec3f p = 0.5f * (m_verts[e.vi[0]] + m_verts[e.vi[1]]) ;
+      EVec3f n = m_qnorms[e.quad_l] + m_qnorms[e.quad_r];
+      n.normalize();
+    
+      glVertex3fv(  p.data());
+      EVec3f c = p+n;
+      glVertex3fv( c.data());
+    }
+    glEnd();
   }
 
 
@@ -428,33 +449,108 @@ public:
       SubdivisionIter();
   }
 
-/*
 private:
-  std::vector<float> ShrinkWrappingIter(const TMesh &trgtmesh, const std::vector<float> &v_offsets)
+  void ShringWrapping_ProjectEdgeVertex(
+      const TQuadEdge &e, 
+      const TMesh &trgtmesh, 
+      EVec3f &pos, 
+      float &offset)
   {
+    EVec3f p = 0.5f * (m_verts[e.vi[0]] + m_verts[e.vi[1]]) ;
+    EVec3f n = m_qnorms[e.quad_l] + m_qnorms[e.quad_r];
+    float len = n.norm();
+
+    pos = p;
+    offset = 0;
+
+    if ( len < 0.000001) 
+      return;
+      
+    n /= len;
+
+    if ( trgtmesh.pickByRay(p, n, pos) ) {
+      offset = (pos - p).norm();
+      return;
+    }
+
+    if ( trgtmesh.pickByRay(p, -1 * n, pos)) { 
+      offset = -(pos - p).norm();
+      return;
+    }
+  }
+  
+  void ShringWrapping_ProjectQuadVertex(
+      const int quad_idx,
+      const TQuad &q, 
+      const TMesh &trgtmesh, 
+      EVec3f &pos, 
+      float &offset)
+  {
+    EVec3f p = 0.25f * (m_verts[q.vi[0]] + m_verts[q.vi[1]] 
+                      + m_verts[q.vi[2]] + m_verts[q.vi[3]] ) ;
+    EVec3f n = m_qnorms[quad_idx];
+    float len = n.norm();
+
+    pos = p;
+    offset = 0;
+
+    if ( len < 0.000001) 
+      return;
+      
+    n /= len;
+
+    if ( trgtmesh.pickByRay(p, n, pos) ) { 
+      offset = (pos - p).norm();
+      return;
+    } 
+    if ( trgtmesh.pickByRay(p,-n, pos)) { 
+      offset = -(pos - p).norm();
+      return;
+    }
+  }
+
+
+public:
+  std::vector<float> ShrinkWrappingIter(const TMesh &trgtmesh, const std::vector<float> &_offsets)
+  {
+    std::cout << "ShrinkWrappingIter 11\n";
+
     const int num_v = (int)m_verts.size();
     const int num_e = (int)m_edges.size();
     const int num_q = (int)m_quads.size();
     
     //gen vertices
     std::vector<EVec3f> Vs = m_verts;
-    Vs.resize();
+    std::vector<float> verts_offset = _offsets;
+    Vs.resize(num_v + num_e + num_q);
+    verts_offset.resize(num_v + num_e + num_q);
+    
+#pragma omp parallel for
     for ( int i = 0; i < num_e; ++i)  
-    {
-      int* ei = m_edges[i].vi;
-      EVec3f c = 0.5f * (m_verts[ei[0]] + m_verts[ei[1]]) ;
-      Vs.push_back( c );
+    { 
+      EVec3f pos;
+      float offset;
+      ShringWrapping_ProjectEdgeVertex( m_edges[i], trgtmesh, pos, offset);      
+      Vs[num_v + i] = pos;
+      verts_offset[num_v + i] = offset;
     } 
-
+    std::cout << "ShrinkWrappingIter 22\n";
+    
+#pragma omp parallel for
     for ( int i = 0; i < num_q; ++i)  
     {
-      int* qi = m_quads[i].vi;
-      EVec3f c = 0.25f * (m_verts[qi[0]] + m_verts[qi[1]] 
-                        + m_verts[qi[2]] + m_verts[qi[3]]) ;
-      Vs.push_back( c );
+      EVec3f pos;
+      float offset;
+      ShringWrapping_ProjectQuadVertex(i, m_quads[i], trgtmesh, pos, offset);
+      Vs[num_v + num_e + i] = pos;
+      verts_offset[num_v + num_e + i] = offset;
     }
 
-    std::vector<EVec4i> Qs;
+    std::cout << "ShrinkWrappingIter 33\n";
+
+
+    std::vector<EVec4i> Qs ( 4 * num_q);
+#pragma omp parallel for
     for ( int i = 0; i < num_q; ++i)  
     {
       int* qi = m_quads[i].vi;
@@ -463,30 +559,32 @@ private:
       int e2 = m_quads[i].ei[2] + num_v;
       int e3 = m_quads[i].ei[3] + num_v;
       int qc = i + num_e + num_v;
-      Qs.push_back( EVec4i(qi[0], e0, qc, e3) );
-      Qs.push_back( EVec4i(qi[1], e1, qc, e0) );
-      Qs.push_back( EVec4i(qi[2], e2, qc, e1) );
-      Qs.push_back( EVec4i(qi[3], e3, qc, e2) );
+      Qs[4*i+0] << qi[0], e0, qc, e3 ;
+      Qs[4*i+1] << qi[1], e1, qc, e0 ;
+      Qs[4*i+2] << qi[2], e2, qc, e1 ;
+      Qs[4*i+3] << qi[3], e3, qc, e2 ;
     }
+
     initialize(Vs, Qs);
-
-
-
+    std::cout << "ShrinkWrappingIter 44\n";
+    return verts_offset;
   }
 
+
+public:
   // starting from cube shape (8 vertices)
   // perform subdivision and projection iteratively 
   // Nobuyuki's paper 
-  void ShrinkWrapping(int n, const TMesh &trgtmesh)
+  std::vector<float> ShrinkWrapping(int n, const TMesh &trgtmesh)
   {
-    if ( m_verts.size() != 8 || m_quads.size() != 6 ) return;
-    vector<float> verts_offset;
+    std::vector<float> verts_offset = {0,0,0,0,0,0,0,0};
+    if ( m_verts.size() != 8 || m_quads.size() != 6 ) return verts_offset;
 
     for ( int i=0; i < n; ++i )
        verts_offset = ShrinkWrappingIter(trgtmesh, verts_offset);
+    return verts_offset;
   }
 
-*/
 
 
 

@@ -93,6 +93,7 @@ namespace ShrinkWrappingParametrization {
       this->Controls->Add(this->m_main_panel);
       this->Name = L"MainForm";
       this->Text = L"MainForm";
+      this->KeyDown += gcnew System::Windows::Forms::KeyEventHandler(this, &MainForm::MainForm_KeyDown);
       this->ResumeLayout(false);
       this->PerformLayout();
 
@@ -105,6 +106,8 @@ namespace ShrinkWrappingParametrization {
     System::Void m_main_panel_MouseMove(System::Object^  sender, System::Windows::Forms::MouseEventArgs^  e);
     System::Void m_main_panel_MouseUp(System::Object^  sender, System::Windows::Forms::MouseEventArgs^  e);
     System::Void m_main_panel_Resize(System::Object^  sender, System::EventArgs^  e);
+    System::Void MainForm_KeyDown(System::Object^  sender, System::Windows::Forms::KeyEventArgs^  e) ;
+  
   };
 
   inline void RedrawMainForm(){ MainForm::GetInst()->RedrawMainPanel(); }

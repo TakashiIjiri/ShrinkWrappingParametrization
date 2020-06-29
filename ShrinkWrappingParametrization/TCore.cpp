@@ -50,6 +50,7 @@ TCore::TCore()
   m_bL = m_bR = m_bM = false;
   vector<string> fnames = GetAllFiles("./models", "obj");
   
+/*
   TMesh m;
   for ( int i = 0; i < 2; ++i ) 
   {
@@ -61,16 +62,30 @@ TCore::TCore()
     Trace(minv);
     Trace(maxv);
   }
+*/
   
-  m_vis_mesh = m;
-  vector<EVec3f> Vs = { m.m_vVerts[0], m.m_vVerts[1], m.m_vVerts[2], m.m_vVerts[3], 
-                        m.m_vVerts[4], m.m_vVerts[5], m.m_vVerts[6], m.m_vVerts[7] };   
+  m_vis_mesh.initialize(("./models/" + fnames[35]).c_str());
+
+  vector<EVec3f> Vs = { m_vis_mesh.m_vVerts[0], m_vis_mesh.m_vVerts[1], 
+                        m_vis_mesh.m_vVerts[2], m_vis_mesh.m_vVerts[3], 
+                        m_vis_mesh.m_vVerts[4], m_vis_mesh.m_vVerts[5], 
+                        m_vis_mesh.m_vVerts[6], m_vis_mesh.m_vVerts[7] };   
   vector<EVec4i> Qs = { EVec4i(0,2,3,1), EVec4i(0,1,5,4), EVec4i(0,4,6,2), 
                         EVec4i(2,6,7,3), EVec4i(1,3,7,5), EVec4i(5,7,6,4) };
+  
+  m_quadmesh_offset = {0,0,0,0,0,0,0,0};
   m_quadmesh.initialize(Vs, Qs);
-m_quadmesh.Subdivision(5);
     
 }
+
+void TCore::KeyDown(int keycode)
+{
+  if ( keycode == 'A')
+    m_quadmesh_offset  = m_quadmesh.ShrinkWrappingIter(m_vis_mesh, m_quadmesh_offset);
+  
+}
+
+
 
 
 
@@ -116,8 +131,8 @@ void TCore::MouseMove( EVec2i p, OglForCLI* ogl)
 
 static float diff[4]  = {0.3f, 0.3f,0.3f,0.3f};
 static float ambi[4]  = {0.3f, 0.3f,0.3f,0.3f};
-static float diffR[4] = {0.8f, 0.3f,0.3f,0.3f};
-static float ambiR[4] = {0.8f, 0.3f,0.3f,0.3f};
+static float diffB[4] = {0.5f, 0.0f,0.1f,0.3f};
+static float ambiB[4] = {0.2f, 0.0f,0.1f,0.3f};
 static float spec[4]  = {1.0f, 1.0f,1.0f,0.3f};
 static float shin[1]  = {128.0f};
 
@@ -161,9 +176,10 @@ void TCore::DrawScene( OglForCLI* ogl)
   
   //glEnable(GL_LIGHTING);
   //m_vis_mesh.draw(diff, ambi, spec, shin);
-
-  glDisable(GL_LIGHTING);
-  m_vis_mesh.DrawEdges(1,1,1,1);
+  //glDisable(GL_LIGHTING);
+  //m_vis_mesh.DrawEdges(1,1,1,1);
+  
+/*
   
    
   glDisable(GL_LIGHTING);
@@ -176,13 +192,14 @@ void TCore::DrawScene( OglForCLI* ogl)
   glColor3d(0,0,1.0); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+5], 0.02f);
   glColor3d(0.5,0,1); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+6], 0.02f);
   glColor3d(1.0,0,1); TMesh::DrawSphere(m_vis_mesh.m_vVerts[piv+7], 0.02f);
-
+*/
 
   glEnable(GL_LIGHTING);
-  m_quadmesh.draw(diffR, ambiR, spec, shin);
+  m_quadmesh.draw(diffB, ambiB, spec, shin);
   glDisable(GL_LIGHTING);
   m_quadmesh.DrawEdges();
   
+  //m_quadmesh.DrawDebugInfo();
 
   //glColor3d(0,1,0);
   //glBegin(GL_LINES);

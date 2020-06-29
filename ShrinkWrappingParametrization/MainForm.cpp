@@ -148,3 +148,9 @@ void MainForm::RedrawMainPanel()
   m_ogl->OnDrawEnd();
 }
 
+
+System::Void MainForm::MainForm_KeyDown(System::Object^  sender, System::Windows::Forms::KeyEventArgs^  e) 
+{
+  TCore::GetInst()->KeyDown((int)e->KeyCode);
+  this->RedrawMainPanel();
+}
