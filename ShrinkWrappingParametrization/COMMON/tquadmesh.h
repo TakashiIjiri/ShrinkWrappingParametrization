@@ -29,10 +29,12 @@ class TQuad
 {
 public:
   int vi[4], ei[4];
+  EVec3f norm;
 
   TQuad(const EVec4i &_vi, const EVec4i &_ei) {
     for ( int i = 0; i < 4; ++i) vi[i] = _vi[i];
     for ( int i = 0; i < 4; ++i) ei[i] = _ei[i];
+    norm << 0, 0, 0;
   }
 
   TQuad(const TQuad &p) { Set(p); }
@@ -41,6 +43,7 @@ public:
   void Set(const TQuad &p) {
     memcpy(vi, p.vi, sizeof(int) * 4);
     memcpy(ei, p.ei, sizeof(int) * 4);
+    norm = p.norm;
   }
 };
 
@@ -88,16 +91,14 @@ class TQuadMesh
 public:
   std::vector<EVec3f> m_verts;
   std::vector<TQuad > m_quads;
-  std::vector<EVec3f> m_vnorms; //vertex
-  std::vector<EVec3f> m_qnorms; //quad 
+  std::vector<EVec3f> m_norms; 
   std::vector<TQuadEdge> m_edges;
 
 
   TQuadMesh()
   {
     m_verts.clear();
-    m_vnorms.clear();
-    m_qnorms.clear();
+    m_norms.clear();
     m_quads.clear();
     m_edges.clear();
   }
@@ -110,8 +111,7 @@ public:
   void clear()
   {
     m_verts.clear();
-    m_vnorms.clear();
-    m_qnorms.clear();
+    m_norms.clear();
     m_quads.clear();
     m_edges.clear();
   }
@@ -120,8 +120,7 @@ public:
   {
     clear();
     m_verts = src.m_verts;
-    m_vnorms = src.m_vnorms;
-    m_qnorms = src.m_qnorms;
+    m_norms = src.m_norms;
     m_quads = src.m_quads;
     m_edges = src.m_edges;
   }
@@ -180,14 +179,11 @@ public:
     
     UpdateNormal();
 
-
     //check
     std::cout << " information ------------------------------------- \n";
     std::cout << "verts:" << m_verts.size() << " quads: " << m_quads.size() << " edges: " << m_edges.size() << "\n";
     //for ( auto e : m_edges) 
     //  std::cout << e.vi[0] << ", " << e.vi[1] << " -- " << e.quad_l << ", " << e.quad_r << "\n";
-
-    
   }
 
   void Translate(const EVec3f t) { 
@@ -200,8 +196,8 @@ public:
 
   void Rotate(Eigen::AngleAxis<float> &R) { 
     for ( auto &v : m_verts ) v = R * v; 
-    for ( auto &v : m_qnorms) v = R * v; 
-    for ( auto &v : m_vnorms) v = R * v; 
+    for ( auto &q : m_quads ) q.norm = R * q.norm; 
+    for ( auto &v : m_norms ) v = R * v; 
   }
 
   void Rotate(const EMat3f &R) { 
@@ -266,18 +262,17 @@ public:
 
   void UpdateNormal()
   {
-    m_vnorms.resize( m_verts.size() );
-    m_qnorms.resize( m_quads.size() );
+    m_norms.resize( m_verts.size() );
     
-    const int num_v = (int)m_vnorms.size();    
+    const int num_v = (int)m_norms.size();    
 
 #pragma omp parallel for
     for (int i = 0; i < num_v; ++i) 
-      m_vnorms[i].setZero();
+      m_norms[i].setZero();
 
-    for (int i = 0, s = (int)m_quads.size(); i < s ; ++i)
+    for (auto &q : m_quads) 
     { 
-      int *idx = m_quads[i].vi;
+      int *idx = q.vi;
       const EVec3f &x0 = m_verts[idx[0]], &x1 = m_verts[idx[1]];
       const EVec3f &x2 = m_verts[idx[2]], &x3 = m_verts[idx[3]];
   
@@ -288,21 +283,20 @@ public:
 
       if ( l1 > 0 ) n1 *= 1.f / l1;  
       if ( l2 > 0 ) n2 *= 1.f / l2;
-      m_qnorms[i] = (l1+l2 > 0) ? (n1 + n2).normalized() : EVec3f(0,0,0);
+      q.norm = (l1+l2 > 0) ? (n1 + n2).normalized() : EVec3f(0,0,0);
 
-      m_vnorms[idx[0]] += n1 + n2;  
-      m_vnorms[idx[1]] += n1;  
-      m_vnorms[idx[2]] += n1 + n2;  
-      m_vnorms[idx[3]] += n2;  
+      m_norms[idx[0]] += n1 + n2;  
+      m_norms[idx[1]] += n1;  
+      m_norms[idx[2]] += n1 + n2;  
+      m_norms[idx[3]] += n2;  
     }
 
 #pragma omp parallel for
     for (int i = 0; i < num_v ; ++i) 
     {
-      float len = m_vnorms[i].norm();
-      if ( len > 0 ) m_vnorms[i] *= 1.0f / len;
+      float len = m_norms[i].norm();
+      if ( len > 0 ) m_norms[i] *= 1.0f / len;
     }
-
   }
   
 
@@ -331,7 +325,7 @@ public:
     //glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     glVertexPointer(3, GL_FLOAT, 0, &m_verts.front() );
-    glNormalPointer(   GL_FLOAT, 0, &m_vnorms.front() );
+    glNormalPointer(   GL_FLOAT, 0, &m_norms.front() );
     glDrawElements(GL_TRIANGLES, 3 * 2 * (int)m_quads.size(), GL_UNSIGNED_INT, indices);
 
     delete[] indices;
@@ -380,7 +374,7 @@ public:
     glBegin(GL_LINES );
     for ( auto e : m_edges){    
       EVec3f p = 0.5f * (m_verts[e.vi[0]] + m_verts[e.vi[1]]) ;
-      EVec3f n = m_qnorms[e.quad_l] + m_qnorms[e.quad_r];
+      EVec3f n = m_quads[e.quad_l].norm + m_quads[e.quad_r].norm;
       n.normalize();
     
       glVertex3fv(  p.data());
@@ -450,23 +444,47 @@ public:
   }
 
 private:
+
+  //エッジの中点とそのエッジの法線を返す．法線が0ならfalseを返す
+  inline bool GetEdgeMidPointNorm(const TQuadEdge &e, EVec3f &p, EVec3f &n){ 
+    const EVec3f &x0 = m_verts[e.vi[0]];
+    const EVec3f &x1 = m_verts[e.vi[1]];
+    p[0] = 0.5f * (x0[0] + x1[0]);
+    p[1] = 0.5f * (x0[1] + x1[1]);
+    p[2] = 0.5f * (x0[2] + x1[2]);
+    n[0] = m_quads[e.quad_l].norm[0] + m_quads[e.quad_r].norm[0];
+    n[1] = m_quads[e.quad_l].norm[1] + m_quads[e.quad_r].norm[1];
+    n[2] = m_quads[e.quad_l].norm[2] + m_quads[e.quad_r].norm[2];
+
+    float len = n.norm();
+    if ( len < 0.000001) 
+      return false;
+    n /= len;
+    return true;
+  }
+  //四角形の中点とその四角形の法線を返す．法線が0ならfalseを返す
+  inline bool GetQuadMidPointNorm(const TQuad &q, EVec3f &p, EVec3f &n){ 
+    const EVec3f &x0 = m_verts[q.vi[0]];
+    const EVec3f &x1 = m_verts[q.vi[1]];
+    const EVec3f &x2 = m_verts[q.vi[2]];
+    const EVec3f &x3 = m_verts[q.vi[3]];
+    p[0] = 0.25f * (x0[0] + x1[0] + x2[0] + x3[0]);
+    p[1] = 0.25f * (x0[1] + x1[1] + x2[1] + x3[1]);
+    p[2] = 0.25f * (x0[2] + x1[2] + x2[2] + x3[2]);
+    n = q.norm;
+    if (n.norm() == 0 ) return false;
+    return true; 
+  }
+
+
   void ShringWrapping_ProjectEdgeVertex(
       const TQuadEdge &e, 
       const TMesh &trgtmesh, 
       EVec3f &pos, 
       float &offset)
   {
-    EVec3f p = 0.5f * (m_verts[e.vi[0]] + m_verts[e.vi[1]]) ;
-    EVec3f n = m_qnorms[e.quad_l] + m_qnorms[e.quad_r];
-    float len = n.norm();
-
-    pos = p;
-    offset = 0;
-
-    if ( len < 0.000001) 
-      return;
-      
-    n /= len;
+    EVec3f p, n;
+    if ( !GetEdgeMidPointNorm(e, p, n) ) return;
 
     if ( trgtmesh.pickByRay(p, n, pos) ) {
       offset = (pos - p).norm();
@@ -480,25 +498,13 @@ private:
   }
   
   void ShringWrapping_ProjectQuadVertex(
-      const int quad_idx,
       const TQuad &q, 
       const TMesh &trgtmesh, 
       EVec3f &pos, 
       float &offset)
   {
-    EVec3f p = 0.25f * (m_verts[q.vi[0]] + m_verts[q.vi[1]] 
-                      + m_verts[q.vi[2]] + m_verts[q.vi[3]] ) ;
-    EVec3f n = m_qnorms[quad_idx];
-    float len = n.norm();
-
-    pos = p;
-    offset = 0;
-
-    if ( len < 0.000001) 
-      return;
-      
-    n /= len;
-
+    EVec3f p, n;
+    GetQuadMidPointNorm( q, p, n);
     if ( trgtmesh.pickByRay(p, n, pos) ) { 
       offset = (pos - p).norm();
       return;
@@ -511,9 +517,9 @@ private:
 
 
 public:
-  std::vector<float> ShrinkWrappingIter(const TMesh &trgtmesh, const std::vector<float> &_offsets)
+  std::vector<float> ShrinkWrappingSubdivision_SingleStep(const TMesh &trgtmesh, const std::vector<float> &_offsets)
   {
-    std::cout << "ShrinkWrappingIter 11\n";
+    std::cout << "ShrinkWrappingIter 11 ";
 
     const int num_v = (int)m_verts.size();
     const int num_e = (int)m_edges.size();
@@ -534,19 +540,19 @@ public:
       Vs[num_v + i] = pos;
       verts_offset[num_v + i] = offset;
     } 
-    std::cout << "ShrinkWrappingIter 22\n";
+    std::cout << "-- 22 ";
     
 #pragma omp parallel for
     for ( int i = 0; i < num_q; ++i)  
     {
       EVec3f pos;
       float offset;
-      ShringWrapping_ProjectQuadVertex(i, m_quads[i], trgtmesh, pos, offset);
+      ShringWrapping_ProjectQuadVertex(m_quads[i], trgtmesh, pos, offset);
       Vs[num_v + num_e + i] = pos;
       verts_offset[num_v + num_e + i] = offset;
     }
 
-    std::cout << "ShrinkWrappingIter 33\n";
+    std::cout << "-- 33 ";
 
 
     std::vector<EVec4i> Qs ( 4 * num_q);
@@ -566,110 +572,83 @@ public:
     }
 
     initialize(Vs, Qs);
-    std::cout << "ShrinkWrappingIter 44\n";
+    std::cout << " -- 44\n";
     return verts_offset;
   }
 
 
 public:
+
   // starting from cube shape (8 vertices)
   // perform subdivision and projection iteratively 
-  // Nobuyuki's paper 
-  std::vector<float> ShrinkWrapping(int n, const TMesh &trgtmesh)
+  // see Nobuyuki's paper 
+  std::vector<float> ShrinkWrappingSubdivision(int n, const TMesh &trgtmesh)
   {
-    std::vector<float> verts_offset = {0,0,0,0,0,0,0,0};
+    std::vector<float> verts_offset(m_verts.size(), 0);
     if ( m_verts.size() != 8 || m_quads.size() != 6 ) return verts_offset;
 
     for ( int i=0; i < n; ++i )
-       verts_offset = ShrinkWrappingIter(trgtmesh, verts_offset);
+       verts_offset = ShrinkWrappingSubdivision_SingleStep(trgtmesh, verts_offset);
     return verts_offset;
   }
 
 
 
-
-
-/*
-  void exportObjNoTexCd(const char *fname)
+  // starting from cube shape (8 vertices)
+  // perform subdivision and projection iteratively 
+  // use verts_offset when movind subdivision vertices in their normal direction 
+  void Initialize_ShrinkWrappingSubdivision(
+    const std::vector<EVec3f> &init_vs, 
+    const std::vector<EVec4i> &init_qs,
+    const int n,
+    const std::vector<float>  &verts_offset )
   {
-    FILE* fp = fopen(fname, "w");
-    if (!fp) return;
-
-    fprintf(fp, "#Obj exported from tmesh\n");
-
-    for (int i = 0; i < m_vSize; ++i)
+    initialize(init_vs, init_qs);
+    
+    for ( int iter = 0; iter < n; ++ iter)
     {
-      fprintf(fp, "v %f %f %f\n", m_vVerts[i][0], m_vVerts[i][1], m_vVerts[i][2]);
-    }
+      const int num_v = (int)m_verts.size();
+      const int num_e = (int)m_edges.size();
+      const int num_q = (int)m_quads.size();
+      //gen vertices
+      std::vector<EVec3f> Vs = m_verts;
+      Vs.resize(num_v + num_e + num_q);
 
-    for (int i = 0; i < m_pSize; ++i)
-    {
-      fprintf(fp, "f %d %d %d\n", m_pPolys[i].idx[0] + 1, m_pPolys[i].idx[1] + 1, m_pPolys[i].idx[2] + 1);
+#pragma omp parallel for
+      for ( int i = 0; i < num_e; ++i)  
+      { 
+        EVec3f p, n;
+        if ( GetEdgeMidPointNorm( m_edges[i], p, n) ) 
+          Vs[num_v + i] = p + verts_offset[num_v + i] * n;
+        else 
+          Vs[num_v + i] = p;
+      } 
+
+#pragma omp parallel for
+      for ( int i = 0; i < num_q; ++i)  
+      {
+        EVec3f p, n;
+        if ( GetQuadMidPointNorm( m_quads[i], p, n) ) 
+          Vs[num_v + num_e + i] = p + verts_offset[num_v + num_e + i] * n;
+        else 
+          Vs[num_v + num_e + i] = p + verts_offset[num_v + num_e + i] * n;
+      }
+
+      std::vector<EVec4i> Qs ( 4 * num_q);
+
+#pragma omp parallel for
+      for ( int i = 0; i < num_q; ++i)  
+      {
+        int* vi = m_quads[i].vi;
+        int* ei = m_quads[i].ei;
+        Qs[4*i+0] << vi[0], ei[0] + num_v, i + num_e + num_v, ei[3] + num_v ;
+        Qs[4*i+1] << vi[1], ei[1] + num_v, i + num_e + num_v, ei[0] + num_v ;
+        Qs[4*i+2] << vi[2], ei[2] + num_v, i + num_e + num_v, ei[1] + num_v ;
+        Qs[4*i+3] << vi[3], ei[3] + num_v, i + num_e + num_v, ei[2] + num_v ;
+      }
+      initialize(Vs, Qs);
     }
-    fclose(fp);
   }
-
-
-
-  bool exportStl(const char *fname)
-  {
-    FILE* fp = fopen(fname, "w");
-    if (!fp) return false;
-
-    fprintf(fp, "solid tmesh\n");
-    for (int i = 0; i < m_pSize; ++i)
-    {
-      fprintf(fp, "facet normal %f %f %f\n", m_pNorms[i][0], m_pNorms[i][1], m_pNorms[i][2]);
-      fprintf(fp, "  outer loop\n");
-
-      int *p = m_pPolys[i].idx;
-      fprintf(fp, "    vertex %f %f %f\n", m_vVerts[p[0]][0], m_vVerts[p[0]][1], m_vVerts[p[0]][2]);
-      fprintf(fp, "    vertex %f %f %f\n", m_vVerts[p[1]][0], m_vVerts[p[1]][1], m_vVerts[p[1]][2]);
-      fprintf(fp, "    vertex %f %f %f\n", m_vVerts[p[2]][0], m_vVerts[p[2]][1], m_vVerts[p[2]][2]);
-
-      fprintf(fp, "  endloop\n");
-      fprintf(fp, "endfacet\n");
-    }
-    fprintf(fp, "endsolid tmesh\n");
-    fclose(fp);
-
-    return true;
-
-  }
-
-*/
-
-  //bool pickByRay(const EVec3f &rayP, const EVec3f &rayD, EVec3f &pos, int &pid) const
-  //{
-  //  float depth = FLT_MAX;
-  //  EVec3f tmpPos;
-  //  pid = -1;
-
-  //  for (int pi = 0; pi < m_pSize; ++pi)
-  //  {
-  //    const int *p = m_pPolys[pi].idx;
-  //    if (t_intersectRayToTriangle(rayP, rayD, m_vVerts[p[0]], m_vVerts[p[1]], m_vVerts[p[2]], tmpPos))
-  //    {
-  //      float d = (tmpPos - rayP).norm();
-  //      if (d < depth)
-  //      {
-  //        depth = d;
-  //        pos = tmpPos;
-  //        pid = pi;
-  //      }
-  //    }
-  //  }
-  //  return depth != FLT_MAX;
-  //}
-
-
-
-  //bool pickByRay(const EVec3f &rayP, const EVec3f &rayD, EVec3f &pos) const
-  //{
-  //  int pid;
-  //  return pickByRay(rayP, rayD, pos, pid);
-  //}
-
 
 };
 

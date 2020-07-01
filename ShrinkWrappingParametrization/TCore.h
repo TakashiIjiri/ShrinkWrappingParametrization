@@ -17,7 +17,13 @@ class TCore
   TMesh m_vis_mesh, m_panel;
 
   std::vector<float> m_quadmesh_offset;
+
+  int m_num_subdiv;
   TQuadMesh m_quadmesh;
+  TQuadMesh m_quadmesh_regen;
+
+
+
   TCore();
 public:
   
