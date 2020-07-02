@@ -10,7 +10,10 @@
 *.userosscache
 *.sln.docstates
 
-ShrinkWrappingParametrization/models
+ShrinkWrappingParametrization/ShrinkWrappingParametrization/3rdParty
+ShrinkWrappingParametrization/models/
+autoencoder/LibTorchTest/LibTorchTest/3rdparty/
+
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
