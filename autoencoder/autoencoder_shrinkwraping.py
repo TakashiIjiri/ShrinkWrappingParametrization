@@ -27,12 +27,16 @@ class Autoencoder(nn.Module):
 		self.encoder = nn.Sequential(
 			nn.Linear(6162, 1000),
 			nn.Sigmoid(),
+			nn.Dropout(p=0.2), 
+			
 			nn.Linear(1000, 10),
-			nn.Sigmoid())
+			nn.Sigmoid(),
+			nn.Dropout(p=0.2))
 
 		self.decoder = nn.Sequential(
 			nn.Linear(10, 1000),
 			nn.Sigmoid(),
+			nn.Dropout(p=0.2), 
 			nn.Linear(1000, 6162))
 
 	def forward(self, x):
@@ -42,18 +46,15 @@ class Autoencoder(nn.Module):
 
 
 
-
-
-
 # ------------------------------
 # step 0 :　setup parameters---- 
 cuda = torch.cuda.is_available()
 if cuda:
     print('cuda is available!')
 
-NUM_EPOCHS = 200
-BATCH_SIZE = 64
-LEARNING_RATE = 0.001
+NUM_EPOCHS = 20000
+BATCH_SIZE = 50
+LEARNING_RATE = 0.01
 EXPORT_DIR    = './autoencoder_sw'
 
 

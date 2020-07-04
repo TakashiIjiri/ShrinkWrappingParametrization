@@ -27,18 +27,23 @@ class Autoencoder(nn.Module):
 		self.encoder = nn.Sequential(
 			nn.Linear(6162, 1000),
 			nn.Sigmoid(),
+			nn.Dropout(p=0.2), 
+			
 			nn.Linear(1000, 10),
-			nn.Sigmoid())
+			nn.Sigmoid(),
+			nn.Dropout(p=0.2))
 
 		self.decoder = nn.Sequential(
 			nn.Linear(10, 1000),
 			nn.Sigmoid(),
+			nn.Dropout(p=0.2), 
 			nn.Linear(1000, 6162))
 
 	def forward(self, x):
 		x = self.encoder(x)
 		x = self.decoder(x)
 		return x
+
 
 
 # ------------------------------
@@ -81,12 +86,13 @@ train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
 
 
 # ------------------------------
-# step 2 : 訓練-----------------
+# step 2 : 書き出し ------------
 
 model = Autoencoder()
 model.load_state_dict(torch.load('{}/autoencoder.pth'.format(EXPORT_DIR),
                                  map_location=lambda storage,
                                  loc: storage))
+model.eval()
 
 print("--------------------------------------")
 print("--------------------------------------")

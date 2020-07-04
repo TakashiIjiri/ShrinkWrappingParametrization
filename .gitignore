@@ -11,7 +11,8 @@
 *.sln.docstates
 
 ShrinkWrappingParametrization/ShrinkWrappingParametrization/3rdParty
-ShrinkWrappingParametrization/models/
+ShrinkWrappingParametrization/ShrinkWrappingParametrization/models/
+autoencoder/AutoencoderCarDll/AutoencoderCarDll/3rdparty/libtorch
 autoencoder/LibTorchTest/LibTorchTest/3rdparty/
 
 

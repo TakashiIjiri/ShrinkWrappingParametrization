@@ -13,16 +13,14 @@
 class TCore
 {
   bool m_bL, m_bR, m_bM;
-
-  TMesh m_vis_mesh, m_panel;
-
   std::vector<float> m_quadmesh_offset;
 
   int m_num_subdiv;
   TQuadMesh m_quadmesh;
-  TQuadMesh m_quadmesh_regen;
 
-
+  //autoencoder動作確認用，元データ と 再構築データ
+  std::vector<TQuadMesh> m_origmesh; 
+  std::vector<TQuadMesh> m_gengmesh;
 
   TCore();
 public:
@@ -32,13 +30,13 @@ public:
     return &p;
   }
   
-  void MouseMove(EVec2i p, OglForCLI* ogl);
-  void LBtnDown(EVec2i p, OglForCLI* ogl);
-  void RBtnDown(EVec2i p, OglForCLI* ogl);
-  void MBtnDown(EVec2i p, OglForCLI* ogl);
-  void LBtnUp(EVec2i p, OglForCLI* ogl);
-  void RBtnUp(EVec2i p, OglForCLI* ogl);
-  void MBtnUp(EVec2i p, OglForCLI* ogl);
+  void MouseMove( EVec2i p, OglForCLI* ogl);
+  void LBtnDown ( EVec2i p, OglForCLI* ogl);
+  void RBtnDown ( EVec2i p, OglForCLI* ogl);
+  void MBtnDown ( EVec2i p, OglForCLI* ogl);
+  void LBtnUp   ( EVec2i p, OglForCLI* ogl);
+  void RBtnUp   ( EVec2i p, OglForCLI* ogl);
+  void MBtnUp   ( EVec2i p, OglForCLI* ogl);
   void DrawScene( OglForCLI* ogl );
   void KeyDown(int keycode);
 };
