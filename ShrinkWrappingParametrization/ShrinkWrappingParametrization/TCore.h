@@ -9,7 +9,6 @@
 #pragma unmanaged
 
 
-
 class TCore
 {
   bool m_bL, m_bR, m_bM;

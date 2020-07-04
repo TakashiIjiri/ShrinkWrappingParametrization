@@ -27,17 +27,20 @@ class Autoencoder(nn.Module):
 		self.encoder = nn.Sequential(
 			nn.Linear(6162, 1000),
 			nn.Sigmoid(),
-			nn.Dropout(p=0.2), 
+			#nn.Dropout(p=0.2), 
 			
-			nn.Linear(1000, 10),
-			nn.Sigmoid(),
-			nn.Dropout(p=0.2))
+			nn.Linear(1000, 20),
+			nn.Sigmoid()
+			# nn.Dropout(p=0.2)
+			)
 
 		self.decoder = nn.Sequential(
-			nn.Linear(10, 1000),
+			nn.Linear(20, 1000),
 			nn.Sigmoid(),
-			nn.Dropout(p=0.2), 
-			nn.Linear(1000, 6162))
+			#nn.Dropout(p=0.2), 
+			nn.Linear(1000, 6162)
+			#nn.Dropout(p=0.5)
+			)
 
 	def forward(self, x):
 		x = self.encoder(x)
@@ -54,7 +57,7 @@ if cuda:
 
 NUM_EPOCHS = 20000
 BATCH_SIZE = 50
-LEARNING_RATE = 0.01
+LEARNING_RATE = 0.001
 EXPORT_DIR    = './autoencoder_sw'
 
 
@@ -90,12 +93,12 @@ train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
 
 # ------------------------------
 # step 2 : 訓練-----------------
-
 model = Autoencoder()
 if cuda:
     model.cuda()
 
-criterion = nn.MSELoss()
+model.train()
+criterion = nn.MSELoss(reduction='sum')
 optimizer = torch.optim.Adam( model.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
 
 loss_list = []
@@ -127,6 +130,7 @@ for epoch in range(NUM_EPOCHS):
 	# ログ
 	if epoch % 10 == 0:
 		print('epoch [{}/{}], loss: {:.4f}'.format(epoch + 1, NUM_EPOCHS, loss.data))
+	if epoch % 500 == 0:
 		torch.save(model.state_dict(), './{}/autoencoder{}.pth'.format(EXPORT_DIR, epoch))
 
 np.save('./{}/loss_list.npy'.format(EXPORT_DIR), np.array(loss_list))

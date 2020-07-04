@@ -9,21 +9,13 @@
 #include <fstream>
 
 
-
-
-
 //dll/lib file 読み込み（libtorchを使ったオートエンコーダ）
 #include "./mydll/AutoencoderForCarDll.h"
 #pragma comment( lib, "mydll/AutoencoderCarDll.lib" )
 
-
-
-
 #pragma unmanaged
 using namespace ShrinkWrappingParametrization;
 using namespace std;
-
-
 
 
 std::vector<std::string> GetAllFiles( std::string dir, string ext)
@@ -50,8 +42,6 @@ std::vector<std::string> GetAllFiles( std::string dir, string ext)
 
 
 
-
-
 //梅谷さんのobjからShrinkWrapParameterizationを取得するコード
 //obj --> 3次元*8頂点 + 6146分のoffset vector
 static void ConvertObjToSWParameters(
@@ -74,6 +64,8 @@ static void ConvertObjToSWParameters(
   points_8 = points_8;
   offset_6146 = offsets;
 }
+
+
 
 
 // parameter 6162 = 3次元 x 8頂点 + (6146 - 8) 点分のoffset値
