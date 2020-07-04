@@ -12,8 +12,8 @@ https://www.autodeskresearch.com/publications/exploring_generative_3d_shapes
 ・AutoencoderCarDll : .ptファイルをlibtorchによりdllかするプロジェクト  
   
   
-動作の様子--> autoencoder_rand.mp4
-  
+動作の様子--> ./autoencoder_rand.mp4
+![動作の様子](./autoencoder_rand.mp4) 
   
   
 追試した手順 のメモ（自分用） 
