@@ -3,8 +3,8 @@
 #pragma unmanaged
 
 //Eigen 
-#include <Dense>
-#include <Geometry> 
+#include <Eigen/Dense>
+#include <Eigen/Geometry> 
 
 //stl
 #include <iostream>

@@ -93,101 +93,6 @@ static void ConvertSWParametersToObj
 
 
 
-TCore::TCore()
-{
-  m_bL = m_bR = m_bM = false;
-
-  //梅谷さん提供objをshrinkwrappingparameterizationへ変換
-  //これを実施して作成したファイルをオートエンコーダに書ける
-  if ( false ) {
-    vector<string> fnames = GetAllFiles("./models", "obj");
-  
-    for ( int i = 0; i < fnames.size(); ++i ) 
-    {
-      //load obj mesh
-      TMesh m;
-      m.initialize(("./models/" + fnames[i]).c_str());
-      
-      vector<EVec3f> points;
-      vector<float > offsets;
-      ConvertObjToSWParameters(m, points, offsets);
-
-      //export parametrization
-      ofstream ofs( ("./models/" + fnames[i] + ".txt").c_str() );
-    
-      for ( auto p : points  ) ofs << p[0] << " " << p[1] << " " << p[2] << "\n";
-      for ( auto o : offsets ) ofs << o << " " ;
-      ofs << "\n";
-      ofs.close();
-    }
-  }
-  
-  
-  //学習済みオートエンコーダの初期化とテスト実行
-  InitializeAutoencoderCar( "full.pt", "encoder.pt", "decoder.pt");
-  //InitializeAutoencoderCar( string("decoder.pt").c_str() );
-  float a[AE_MID_SIZE]  ;
-  float b[AE_INPUT_SIZE];
-  for ( int i = 0; i < AE_MID_SIZE; ++i)
-    a[i] = 0.5f; 
-  AutoencoderCar_Decode(a,b);
-  ConvertSWParametersToObj(b, m_quadmesh);
-
-  
-  vector<string> fnames = GetAllFiles("./models", "obj");
-
-  const int NUM_TEST_GEN = 20;
-  m_origmesh.resize(NUM_TEST_GEN);
-  m_gengmesh.resize(NUM_TEST_GEN);
-
-  for ( int i = 0; i < NUM_TEST_GEN; ++i)
-  {
-    // obj読み込み --> quad mesh生成
-    TMesh mesh;
-    mesh.initialize(("./models/" + fnames[35+i]).c_str());
-
-    // obj --> quadmesh --> parameterization
-    vector<EVec3f> Vs = 
-      { mesh.m_vVerts[0], mesh.m_vVerts[1], mesh.m_vVerts[2], mesh.m_vVerts[3], 
-        mesh.m_vVerts[4], mesh.m_vVerts[5], mesh.m_vVerts[6], mesh.m_vVerts[7] };   
-    vector<EVec4i> Qs = { EVec4i(0,2,3,1), EVec4i(0,1,5,4), EVec4i(0,4,6,2), 
-                          EVec4i(2,6,7,3), EVec4i(1,3,7,5), EVec4i(5,7,6,4) };
-
-    m_origmesh[i].initialize(Vs, Qs);
-    vector<float> offsets = m_origmesh[i].ShrinkWrappingSubdivision(5, mesh);
-
-    // parameter --> encoder --> decoder --> quadmesh
-    float *input       = new float[AE_INPUT_SIZE]; //AE_INPUT_SIZE 6162
-    float *output_full = new float[AE_INPUT_SIZE];
-    float *output_enco = new float[AE_MID_SIZE  ]; //AE_MID_SIZE   20 
-    float *output_deco = new float[AE_INPUT_SIZE];
-    for ( int i=0; i < 8; ++i) { 
-      input[3*i+0] = Vs[i][0];
-      input[3*i+1] = Vs[i][1];
-      input[3*i+2] = Vs[i][2];
-    }
-
-    //6146頂点 最初の8点は読み飛ばす
-    for ( int i = 8; i < 6146; ++i) input[ 24 + i - 8] = offsets[i];
-    AutoencoderCar_EncoderDecoder(input, output_full);
-    AutoencoderCar_Encoder       (input, output_enco);
-    AutoencoderCar_Decode        (output_enco, output_deco);
-
-    for ( int i = 0; i < AE_MID_SIZE; ++i) {
-      std::cout << output_full[i] << " " << output_deco[i] << "     " << output_enco[i] << " nyan\n"; 
-    }
-  
-    ConvertSWParametersToObj(output_full, m_gengmesh[i]);
-    delete[] input;
-    delete[] output_full;
-    delete[] output_enco;
-    delete[] output_deco;
-  }
-}
-
-
-
-
 
 
 
@@ -324,6 +229,104 @@ void TCore::DrawScene( OglForCLI* ogl)
   
 }
   
+
+
+
+TCore::TCore()
+{
+  m_bL = m_bR = m_bM = false;
+
+  //梅谷さん提供objをshrinkwrappingparameterizationへ変換
+  //これを実施して作成したファイルをオートエンコーダに書ける
+  if (false) {
+    vector<string> fnames = GetAllFiles("./models", "obj");
+
+    for (int i = 0; i < fnames.size(); ++i)
+    {
+      //load obj mesh
+      TMesh m;
+      m.initialize(("./models/" + fnames[i]).c_str());
+
+      vector<EVec3f> points;
+      vector<float > offsets;
+      ConvertObjToSWParameters(m, points, offsets);
+
+      //export parametrization
+      ofstream ofs(("./models/" + fnames[i] + ".txt").c_str());
+
+      for (auto p : points) ofs << p[0] << " " << p[1] << " " << p[2] << "\n";
+      for (auto o : offsets) ofs << o << " ";
+      ofs << "\n";
+      ofs.close();
+    }
+  }
+
+
+  //学習済みオートエンコーダの初期化とテスト実行
+  InitializeAutoencoderCar("full.pt", "encoder.pt", "decoder.pt");
+  //InitializeAutoencoderCar( string("decoder.pt").c_str() );
+  float a[AE_MID_SIZE];
+  float b[AE_INPUT_SIZE];
+  for (int i = 0; i < AE_MID_SIZE; ++i)
+    a[i] = 0.5f;
+  AutoencoderCar_Decode(a, b);
+  ConvertSWParametersToObj(b, m_quadmesh);
+
+
+  vector<string> fnames = GetAllFiles("./models", "obj");
+
+  const int NUM_TEST_GEN = 20;
+  m_origmesh.resize(NUM_TEST_GEN);
+  m_gengmesh.resize(NUM_TEST_GEN);
+
+  for (int i = 0; i < NUM_TEST_GEN; ++i)
+  {
+    // obj読み込み --> quad mesh生成
+    TMesh mesh;
+    mesh.initialize(("./models/" + fnames[35 + i]).c_str());
+
+    // obj --> quadmesh --> parameterization
+    vector<EVec3f> Vs =
+    { mesh.m_vVerts[0], mesh.m_vVerts[1], mesh.m_vVerts[2], mesh.m_vVerts[3],
+      mesh.m_vVerts[4], mesh.m_vVerts[5], mesh.m_vVerts[6], mesh.m_vVerts[7] };
+    vector<EVec4i> Qs = { EVec4i(0,2,3,1), EVec4i(0,1,5,4), EVec4i(0,4,6,2),
+                          EVec4i(2,6,7,3), EVec4i(1,3,7,5), EVec4i(5,7,6,4) };
+
+    m_origmesh[i].initialize(Vs, Qs);
+    vector<float> offsets = m_origmesh[i].ShrinkWrappingSubdivision(5, mesh);
+
+    // parameter --> encoder --> decoder --> quadmesh
+    float *input = new float[AE_INPUT_SIZE]; //AE_INPUT_SIZE 6162
+    float *output_full = new float[AE_INPUT_SIZE];
+    float *output_enco = new float[AE_MID_SIZE]; //AE_MID_SIZE   20 
+    float *output_deco = new float[AE_INPUT_SIZE];
+    for (int i = 0; i < 8; ++i) {
+      input[3 * i + 0] = Vs[i][0];
+      input[3 * i + 1] = Vs[i][1];
+      input[3 * i + 2] = Vs[i][2];
+    }
+
+    //6146頂点 最初の8点は読み飛ばす
+    for (int i = 8; i < 6146; ++i) input[24 + i - 8] = offsets[i];
+    AutoencoderCar_EncoderDecoder(input, output_full);
+    AutoencoderCar_Encoder(input, output_enco);
+    AutoencoderCar_Decode(output_enco, output_deco);
+
+    for (int i = 0; i < AE_MID_SIZE; ++i) {
+      std::cout << output_full[i] << " " << output_deco[i] << "     " << output_enco[i] << " done\n";
+    }
+
+    ConvertSWParametersToObj(output_full, m_gengmesh[i]);
+    delete[] input;
+    delete[] output_full;
+    delete[] output_enco;
+    delete[] output_deco;
+  }
+}
+
+
+
+
  
 
 #pragma managed
